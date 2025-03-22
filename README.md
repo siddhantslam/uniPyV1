@@ -23,6 +23,7 @@ This project uses YOLOv8 to detect and classify building elements in architectur
 - `preprocess_data.py` - Data preprocessing script for preparing training datasets
 - `train_models.py` - Training script for fine-tuning YOLOv8 models
 - `yolov8n.pt` - Base YOLOv8 nano model
+- `archive/` - Contains FloorplanCAD dataset in tar.xz format
 
 ## Requirements
 
@@ -51,34 +52,31 @@ pyyaml>=6.0.0
 
 ### Preprocessing Data for Training
 
-This step prepares your datasets (FloorPlanCAD and ZInD) for training:
+This step prepares the FloorplanCAD dataset for training:
 
 ```bash
-python preprocess_data.py --floorplancad_path /path/to/floorplancad 
-                         --zind_path /path/to/zind 
-                         --output_path /path/to/output
-                         --val_split 0.2
-                         --test_split 0.1
+python preprocess_data.py --floorplancad_path ./archive --output_path ./processed_data
 ```
 
 Arguments:
-- `--floorplancad_path`: Path to FloorPlanCAD dataset
-- `--zind_path`: Path to ZInD dataset
+- `--floorplancad_path`: Path to FloorPlanCAD dataset archive (default: ./archive)
 - `--output_path`: Path to save processed datasets
 - `--val_split`: Validation split ratio (default: 0.2)
 - `--test_split`: Test split ratio (default: 0.1)
 - `--seed`: Random seed for reproducibility (default: 42)
+
+The script will automatically extract and process the tar.xz files in the archive directory.
 
 ### Training Models
 
 Once data is preprocessed, you can train the YOLOv8 models:
 
 ```bash
-python train_models.py --level3_data /path/to/level3/data.yaml 
-                      --level4_data /path/to/level4/data.yaml
-                      --models_dir /path/to/save/models
-                      --base_model yolov8n.pt
-                      --epochs 100
+python train_models.py --level3_data ./processed_data/level3/data.yaml 
+                       --level4_data ./processed_data/level4/data.yaml
+                       --models_dir ./models
+                       --base_model yolov8n.pt
+                       --epochs 100
 ```
 
 Arguments:
@@ -99,7 +97,7 @@ Process a video using the trained models:
 python app.py -i input.mp4 -o output_video.mp4 
              -m3 models/uniformat_level3/weights/best.pt 
              -m4 models/uniformat_level4/weights/best.pt 
-             --mapping_file /path/to/output/uniformat_mapping.json
+             --mapping_file ./processed_data/uniformat_mapping.json
              --level both
              --display
 ```
@@ -113,6 +111,10 @@ Arguments:
 - `-c, --confidence`: Confidence threshold for detections (default: 0.5)
 - `--level`: Which Uniformat level to display ("3", "4", or "both", default: "both")
 - `--display`: Display video during processing
+
+## Dataset
+
+This project uses the **FloorplanCAD** dataset which is stored in tar.xz archives in the ./archive directory. The dataset contains annotated CAD floor plans with key building elements that are mapped to Uniformat classification codes during preprocessing.
 
 ## Uniformat Classification
 
@@ -140,4 +142,4 @@ Each level 3 code (e.g., B2030) is further broken down into level 4 codes (e.g.,
 ## Acknowledgments
 
 - This project uses the [Ultralytics YOLOv8](https://github.com/ultralytics/ultralytics) framework
-- FloorPlanCAD and ZInD datasets are used for training the models
+- FloorplanCAD dataset is used for training the models

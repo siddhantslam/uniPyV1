@@ -1,0 +1,68 @@
+# Datasets
+archive/
+temp_extract/
+*.tar.xz
+*.zip
+*.gz
+*.rar
+*.7z
+
+# Processed data
+processed_data/
+
+# Models and weights
+models/
+*.pt
+runs/
+
+# Media files
+*.mp4
+*.avi
+*.mov
+*.mkv
+*.wmv
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# Virtual Environment
+venv/
+ENV/
+env/
+
+# OS specific files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# IDE files
+.idea/
+.vscode/
+*.swp
+*.swo

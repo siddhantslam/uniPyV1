@@ -47,7 +47,7 @@ def train_model(
     data_yaml: str,
     output_dir: str,
     base_model: str = "yolov8n.pt",
-    epochs: int = 100,
+    epochs: int = 10,
     batch_size: int = 16,
     img_size: int = 640,
     device: str = ""
