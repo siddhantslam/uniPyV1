@@ -1,6 +1,7 @@
 # Datasets
 archive/
 temp_extract/
+dataset/
 *.tar.xz
 *.zip
 *.gz
