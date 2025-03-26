@@ -21,6 +21,9 @@ Usage:
                           
     # For webcam inference:
     python train_models.py --webcam --model_path best.pt
+    
+    # For iPhone camera feed inference:
+    python train_models.py --webcam --camera_url "http://192.168.1.172:8888/video" --model_path best2.pt
 """
 
 import argparse
@@ -55,6 +58,8 @@ def parse_arguments() -> argparse.Namespace:
                         help="Device to use for training (default: auto-select)")
     parser.add_argument("--webcam", action="store_true",
                         help="Run inference on webcam feed")
+    parser.add_argument("--camera_url", 
+                        help="URL for iPhone camera stream (e.g., 'http://192.168.1.100:8080/video')")
     parser.add_argument("--model_path", default="best.pt",
                         help="Path to the model for webcam inference (default: best.pt)")
     parser.add_argument("--conf", type=float, default=0.25,
@@ -122,7 +127,7 @@ def train_model(
     return str(best_weights_path)
 
 
-def run_webcam_inference(model_path: str, conf_threshold: float = 0.25, device: str = ""):
+def run_webcam_inference(model_path: str, conf_threshold: float = 0.25, device: str = "", camera_url: str = None):
     """
     Run real-time inference on webcam feed using a trained YOLOv8 model.
     
@@ -130,38 +135,94 @@ def run_webcam_inference(model_path: str, conf_threshold: float = 0.25, device: 
         model_path: Path to the trained model weights
         conf_threshold: Confidence threshold for detections
         device: Device to use for inference
+        camera_url: URL for iPhone camera stream
     """
     print(f"\n===== Running Webcam Inference with Model: {model_path} =====\n")
     
     # Load model
     model = YOLO(model_path)
     
-    # Open webcam
-    cap = cv2.VideoCapture(0)
+    # Open webcam or iPhone camera stream
+    if camera_url:
+        print(f"Attempting to connect to iPhone camera stream at: {camera_url}")
+        cap = cv2.VideoCapture(camera_url)
+        
+        # Try a few times to connect (sometimes it takes a moment)
+        connect_attempts = 0
+        while not cap.isOpened() and connect_attempts < 3:
+            print(f"Connection attempt {connect_attempts + 1}...")
+            time.sleep(2)  # Wait before trying again
+            cap = cv2.VideoCapture(camera_url)
+            connect_attempts += 1
+    else:
+        print("Using built-in webcam")
+        cap = cv2.VideoCapture(0)
     
     if not cap.isOpened():
-        print("Error: Could not open webcam.")
+        print("Error: Could not open video source.")
+        if camera_url:
+            print("\nTroubleshooting iPhone camera connection:")
+            print("1. Make sure your iPhone and computer are on the same WiFi network")
+            print("2. Ensure you've installed a camera streaming app on your iPhone (like 'IP Camera')")
+            print("3. Verify the URL format is correct for your streaming app")
+            print("4. Check if there's a firewall blocking the connection")
+            print("5. Try accessing the stream URL in a web browser to verify it works")
         return
     
     # Set webcam properties for better quality (if supported)
     cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
     cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
     
-    print("Webcam inference started. Press 'q' to quit.")
+    # Display information
+    if camera_url:
+        print(f"Successfully connected to iPhone camera stream")
+    print("Inference started. Press 'q' to quit.")
+    
+    frame_count = 0
+    start_time = time.time()
+    fps = 0
     
     try:
         while True:
-            # Read frame from webcam
+            # Read frame
             ret, frame = cap.read()
             if not ret:
-                print("Error: Failed to capture image from webcam.")
-                break
+                print("Error: Failed to capture image from stream.")
+                # Try to reconnect for iPhone streams as they can be unstable
+                if camera_url:
+                    print("Attempting to reconnect...")
+                    cap = cv2.VideoCapture(camera_url)
+                    if not cap.isOpened():
+                        print("Reconnection failed. Exiting.")
+                        break
+                    continue
+                else:
+                    break
+            
+            # Calculate FPS
+            frame_count += 1
+            if frame_count % 10 == 0:  # Update FPS every 10 frames
+                end_time = time.time()
+                elapsed_time = end_time - start_time
+                fps = 10 / elapsed_time if elapsed_time > 0 else 0
+                start_time = time.time()
             
             # Run inference on the frame
             results = model.predict(frame, conf=conf_threshold, device=device)
             
             # Visualize results on the frame
             annotated_frame = results[0].plot()
+            
+            # Add FPS information to the frame
+            cv2.putText(
+                annotated_frame, 
+                f"FPS: {fps:.1f}", 
+                (10, 30), 
+                cv2.FONT_HERSHEY_SIMPLEX, 
+                1, 
+                (0, 255, 0), 
+                2
+            )
             
             # Display frame with annotations
             cv2.imshow("YOLOv8 Inference", annotated_frame)
@@ -172,11 +233,13 @@ def run_webcam_inference(model_path: str, conf_threshold: float = 0.25, device: 
                 
     except KeyboardInterrupt:
         print("Interrupted by user.")
+    except Exception as e:
+        print(f"Error during inference: {e}")
     finally:
         # Release resources
         cap.release()
         cv2.destroyAllWindows()
-        print("\nWebcam inference stopped.")
+        print("\nInference stopped.")
 
 
 def main():
@@ -185,7 +248,7 @@ def main():
     
     # If webcam mode is selected, run inference on webcam
     if args.webcam:
-        run_webcam_inference(args.model_path, args.conf, args.device)
+        run_webcam_inference(args.model_path, args.conf, args.device, args.camera_url)
         return
     
     # Ensure models_dir is provided for training mode
