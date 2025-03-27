@@ -1,0 +1,9 @@
+{
+  "date": "2025-03-24 15:21:35",
+  "base_model": "yolov8n.pt",
+  "epochs": 5,
+  "batch_size": 16,
+  "img_size": 640,
+  "door_model": "/Users/siddhantbadola/UniformatCodesHorizon/uniPyV1/models/door_detection/weights/best.pt",
+  "door_data": "/Users/siddhantbadola/UniformatCodesHorizon/uniPyV1/dataset/door/data.yaml"
+}

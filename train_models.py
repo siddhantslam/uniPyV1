@@ -24,6 +24,8 @@ Usage:
     
     # For iPhone camera feed inference:
     python train_models.py --webcam --camera_url "http://192.168.1.172:8888/video" --model_path best2.pt
+
+    python train_models.py  --webcam --camera_url "http://192.168.1.172:4747/video" --model_path yolo12n.pt
 """
 
 import argparse
@@ -127,7 +129,7 @@ def train_model(
     return str(best_weights_path)
 
 
-def run_webcam_inference(model_path: str, conf_threshold: float = 0.25, device: str = "", camera_url: str = None):
+def run_webcam_inference(model_path: str, conf_threshold: float = 0.5, device: str = "", camera_url: str = None):
     """
     Run real-time inference on webcam feed using a trained YOLOv8 model.
     

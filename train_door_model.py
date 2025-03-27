@@ -11,17 +11,20 @@ Usage:
                               [--device ""] [--models_dir ./models]
 
  # For webcam inference:
-    python train_models.py --webcam --model_path best.pt
+    python train_door_model.py --webcam --model_path best.pt
     
     # For iPhone camera feed inference:
-    python train_models.py --webcam --camera_url "http://192.168.1.172:8888/video" --model_path best2.pt 
-                              
+    python train_door_model.py --webcam --camera_url "http://192.168.1.172:8888/video" --model_path best2.pt 
+    
+    # For video file inference:
+    python train_door_model.py --video path/to/video.mp4 --model_path best.pt
                               """
 
 import argparse
 import os
 import json
 import time
+import cv2
 from pathlib import Path
 
 from ultralytics import YOLO
@@ -42,6 +45,17 @@ def parse_arguments() -> argparse.Namespace:
                         help="Image size for training (default: 640)")
     parser.add_argument("--device", default="", 
                         help="Device to use for training (default: auto-select)")
+    parser.add_argument("--data_yaml", type=str, default="", 
+                        help="Path to data.yaml file (default: doorDataset/dataset/data.yaml)")
+    # Add inference-related arguments
+    parser.add_argument("--webcam", action="store_true", 
+                        help="Run inference on webcam feed")
+    parser.add_argument("--video", type=str, default="", 
+                        help="Path to video file for inference")
+    parser.add_argument("--camera_url", type=str, default="", 
+                        help="URL for IP camera feed")
+    parser.add_argument("--model_path", type=str, default="best.pt", 
+                        help="Path to model weights for inference")
     return parser.parse_args()
 
 
@@ -149,16 +163,178 @@ def update_yaml_paths(yaml_path):
     return temp_yaml_path
 
 
+def run_webcam_inference(model_path, camera_url=""):
+    """Run inference on webcam or IP camera feed."""
+    print(f"Running inference with model: {model_path}")
+    
+    # Load the model
+    model = YOLO(model_path)
+    
+    # Use the specified camera URL or default webcam
+    if camera_url:
+        print(f"Using camera feed from: {camera_url}")
+        cap = cv2.VideoCapture(camera_url)
+    else:
+        print("Using default webcam")
+        cap = cv2.VideoCapture(0)
+    
+    # Check if camera opened successfully
+    if not cap.isOpened():
+        print("Error: Could not open camera feed.")
+        return
+    
+    # Process frames
+    while True:
+        ret, frame = cap.read()
+        if not ret:
+            print("Error: Failed to capture frame.")
+            break
+        
+        # Run inference
+        results = model(frame)
+        
+        # Custom visualization
+        # Instead of results[0].plot()
+        annotated_frame = frame.copy()
+        
+        for result in results:
+            boxes = result.boxes
+            for i, box in enumerate(boxes):
+                x1, y1, x2, y2 = box.xyxy[0].tolist()
+                conf = box.conf[0].item()
+                
+                # Custom logic to determine door type
+                door_crop = frame[int(y1):int(y2), int(x1):int(x2)]
+                if is_interior_door(door_crop):
+                    label = f"Interior Door {conf:.2f}"
+                    color = (0, 255, 0)  # Green for interior
+                else:
+                    label = f"Door {conf:.2f}"
+                    color = (0, 0, 255)  # Red for regular
+                
+                # Draw box and label
+                cv2.rectangle(annotated_frame, (int(x1), int(y1)), (int(x2), int(y2)), color, 2)
+                cv2.putText(annotated_frame, label, (int(x1), int(y1)-10), 
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.9, color, 2)
+        
+        # Show frame
+        cv2.imshow("Door Detection", annotated_frame)
+        
+        # Break the loop on 'q' key press
+        if cv2.waitKey(1) & 0xFF == ord('q'):
+            break
+    
+    # Release resources
+    cap.release()
+    cv2.destroyAllWindows()
+def is_interior_door(door_crop):
+    """
+    Custom logic to determine if the detected door is an interior door.
+    
+    Args:
+        door_crop: Cropped image of the detected door
+    
+    Returns:
+        bool: True if it's an interior door, False otherwise
+    """
+    # Placeholder logic for interior door detection
+    # Replace with actual logic as needed
+    # For example, check color, texture, etc.
+    return True  # Default to True for now
+
+def run_video_inference(model_path, video_path):
+    """Run inference on a video file."""
+    print(f"Running inference on video: {video_path} with model: {model_path}")
+    
+    # Load the model
+    model = YOLO(model_path)
+    
+    # Open the video file
+    cap = cv2.VideoCapture(video_path)
+    
+    # Check if video opened successfully
+    if not cap.isOpened():
+        print(f"Error: Could not open video file: {video_path}")
+        return
+    
+    # Get video properties for output
+    fps = cap.get(cv2.CAP_PROP_FPS)
+    frame_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+    frame_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+    
+    # Create output video file
+    output_path = os.path.splitext(video_path)[0] + "_detected.mp4"
+    fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+    out = cv2.VideoWriter(output_path, fourcc, fps, (frame_width, frame_height))
+    
+    # Process frames
+    frame_count = 0
+    while True:
+        # Read a frame
+        ret, frame = cap.read()
+        if not ret:
+            break
+        
+        # Run inference
+        results = model(frame)
+        
+        # Process results and visualize
+        annotated_frame = results[0].plot()
+        
+        # Write to output file
+        out.write(annotated_frame)
+        
+        # Display the annotated frame (optional)
+        cv2.imshow("Door Detection", annotated_frame)
+        
+        # Break the loop on 'q' key press
+        if cv2.waitKey(1) & 0xFF == ord('q'):
+            break
+        
+        frame_count += 1
+        if frame_count % 100 == 0:
+            print(f"Processed {frame_count} frames")
+    
+    # Release resources
+    cap.release()
+    out.release()
+    cv2.destroyAllWindows()
+    
+    print(f"Inference complete. Output saved to: {output_path}")
+
+
 def main():
     """Main execution function."""
     args = parse_arguments()
+    
+    # Check if we're running inference
+    if args.webcam or args.video:
+        model_path = args.model_path
+        
+        # Ensure model path is absolute
+        if not os.path.isabs(model_path):
+            current_dir = os.path.dirname(os.path.abspath(__file__))
+            model_path = os.path.join(current_dir, model_path)
+        
+        if args.webcam:
+            run_webcam_inference(model_path, args.camera_url)
+        elif args.video:
+            run_video_inference(model_path, args.video)
+        return 0
     
     # Get current directory
     current_dir = os.path.dirname(os.path.abspath(__file__))
     
     # Door dataset path (use absolute path)
-    door_data_dir = os.path.join(current_dir, "doorDataset/dataset")
-    door_data_yaml = os.path.join(door_data_dir, "data.yaml")
+    if args.data_yaml:
+        door_data_yaml = args.data_yaml
+        if not os.path.isabs(door_data_yaml):
+            # Convert to absolute path if it's not already
+            door_data_yaml = os.path.abspath(door_data_yaml)
+    else:
+        # Use default path
+        door_data_dir = os.path.join(current_dir, "doorDataset/dataset")
+        door_data_yaml = os.path.join(door_data_dir, "data.yaml")
     
     # Ensure the dataset file exists
     if not os.path.exists(door_data_yaml):
@@ -210,7 +386,7 @@ def main():
     
     print("\n===== Training Complete =====")
     print(f"Training info saved to: {training_info_path}")
-    print("\nYou can now use this model with the inference script or run with --webcam option.")
+    print("\nYou can now use this model with the inference script or run with --webcam or --video option.")
 
 
 if __name__ == "__main__":

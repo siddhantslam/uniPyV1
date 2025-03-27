@@ -1,29 +1,25 @@
-# Datasets
-archive/
-temp_extract/
+# Datasets and media
 dataset/
-*.tar.xz
-*.zip
-*.gz
-*.rar
-*.7z
-
-# Processed data
+DatasetC10/
+datasetOpen/
+doorDataset/
+merged_dataset/
+temp_extract/
 processed_data/
-
-# Models and weights
-models/
-*.pt
-runs/
-
-# Media files
 *.mp4
-*.avi
-*.mov
-*.mkv
-*.wmv
+*.jpg
+*.jpeg
+*.png
+*.gif
+*.svg
 
-# Python
+# Model files
+*.pt
+*.onnx
+*.tflite
+*.h5
+
+# Python files
 __pycache__/
 *.py[cod]
 *$py.class
@@ -48,10 +44,11 @@ var/
 # Jupyter Notebook
 .ipynb_checkpoints
 
-# Virtual Environment
+# Environment
+.env
+.venv
 venv/
 ENV/
-env/
 
 # OS specific files
 .DS_Store
@@ -62,8 +59,11 @@ env/
 ehthumbs.db
 Thumbs.db
 
-# IDE files
+# IDE specific files
 .idea/
 .vscode/
 *.swp
 *.swo
+
+# Log files
+*.log
